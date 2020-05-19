@@ -82,6 +82,9 @@ void PrintVariant(const Variant & var) {
 }
 
 int main (int argc, char** argv) {
+
+	// USAGE: zcat vcf.gz | <PROGRAM> | gzip > output.vcf.gz
+
 	std::ios_base::sync_with_stdio(false); // Fastern IO
 	std::cin.tie(NULL); // Fastern IO
 
