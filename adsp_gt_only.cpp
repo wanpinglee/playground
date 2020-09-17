@@ -7,7 +7,9 @@
 struct Variant {
 	// the CHROM, ID, REF, ALT, QUAL, FILTER, INFO, and FORMAT columns in VCF
 	std::string chr, id, ref, alt, qual, filter, info, format;
-	int pos, ac, an; // position, AC, and AN
+	int pos, ac, an; // position, AC, and AN.
+	int qc_dp, qc_gq, qc_both; // DP < 10 and/or GQ <20.
+	int ac_qc, an_qc; // AC and AN after QC.
 	std::vector<std::string> gt;
 	std::vector<std::string> dp;
 	std::vector<std::string> gq;
@@ -59,9 +61,8 @@ bool KeepFlag (std::string & info) {
 	return !all_flagged;
 }
 
-//Extract GT value of each sample and push them to var.gt
-//If all GTs are missing, then return true.
-bool ExtractGT (Variant & var, std::stringstream & ss) {
+//Extract GT,DP and GQ values of each sample and push them to var.gt, var.dp, and var.gq.
+bool ExtractInfo (Variant & var, std::stringstream & ss) {
 	//var.ac = 0;
 	//var.an = 0;
 	std::string token;
@@ -78,22 +79,45 @@ bool ExtractGT (Variant & var, std::stringstream & ss) {
 
 		/*
 		all_missing &= (gt == "./.");
-	
-		if (gt[0] != '.') var.an++;
-		if (gt[2] != '.') var.an++;
-		if (gt[0] != '.' && gt[0] != '0') var.ac++;
-		if (gt[2] != '.' && gt[2] != '0') var.ac++;
 		*/
 
-		/*
+		int an = 0, ac = 0;
+
+		if (gt[0] != '.') an++;
+		if (gt[2] != '.') an++;
+		if (gt[0] != '.' && gt[0] != '0') ac++;
+		if (gt[2] != '.' && gt[2] != '0') ac++;
+
+		var.an += an;
+		var.ac += ac;
+		var.an_qc += an;
+		var.ac_qc += ac;
+		
+		// For AD
 		pos = token.find(':'), pos + 1; // AD
+
+		// For DP
 		std::size_t pos1 = token.find((':'), pos + 1); // DP
-		var.dp.push_back(token.substr(pos + 1, pos1 - pos - 1));
+		//var.dp.push_back(token.substr(pos + 1, pos1 - pos - 1));
+		const bool qc_dp_fail = (std::atoi(token.substr(pos + 1, pos1 - pos - 1).c_str()) < 10) ? true : false;
+		if (qc_dp_fail) {
+			var.qc_dp++;
+			var.an_qc -= an;
+			var.ac_qc -= ac;
+		}
+
+		// For GQ
 		pos = pos1;
 		pos1 = token.find((':'), pos + 1); // GQ
-		var.gq.push_back(token.substr(pos + 1, pos1 - pos - 1));
-		*/
-		
+		//var.gq.push_back(token.substr(pos + 1, pos1 - pos - 1));
+		const bool qc_gq_fail = (std::atoi(token.substr(pos + 1, pos1 - pos - 1).c_str()) < 20) ? true : false;
+		if (qc_gq_fail) var.qc_gq++;
+		if (qc_gq_fail && !qc_dp_fail) {
+			var.an_qc -= an;
+			var.ac_qc -= ac;
+		}
+
+		if (qc_dp_fail && qc_gq_fail) var.qc_both++;
 	}
 	//return all_missing;
 	return false;
@@ -119,12 +143,13 @@ void PrintVariant(const Variant & var) {
 
 int main (int argc, char** argv) {
 
-	// USAGE: zcat vcf.gz | <PROGRAM> | gzip > output.vcf.gz
+	// USAGE: zcat vcf.gz | <PROGRAM> | gzip > output.vcf.gz 2> info.txt
 
 	std::ios_base::sync_with_stdio(false); // Fastern IO
 	std::cin.tie(NULL); // Fastern IO
 
 	std::string line; // buffer
+	std::cerr << "AC\tAN\tQC_AC\tQC_AN\tDP<10\tGQ<20\tDP_GQ" << std::endl;
 	while (std::getline(std::cin, line)) { // Catch a line from stdin
 		if (line[0] == '#') { // for header section, write out directly
 			std::cout << line << std::endl;
@@ -134,8 +159,10 @@ int main (int argc, char** argv) {
 			GetBasicInfo(var, ss);
 			var.format = "GT"; // Only keep GT
 			//var.pass = KeepFlag(var.info); // rephase info; keep only VFLAGS and ABHet
-			ExtractGT(var, ss);
-			PrintVariant(var);
+			ExtractInfo(var, ss);
+			PrintVariant(var); // Output vcf to stdout
+			std::cerr << var.ac << "\t" << var.an << "\t" << var.ac_qc << "\t" 
+			<< var.an_qc << "\t" << var.qc_dp << "\t" << var.qc_gq << "\t" << var.qc_both << std::endl;
 		}
 	}
 
