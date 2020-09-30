@@ -14,6 +14,24 @@ struct Variant {
 	std::vector<std::string> dp;
 	std::vector<std::string> gq;
 	bool pass;
+
+	bool clean() {
+		chr.clear();
+		id.clear();
+		ref.clear();
+		alt.clear();
+		qual.clear();
+		filter.clear();
+		info.clear();
+		format.clear();
+		pos=0, ac=0, an=0;
+		qc_dp=0, qc_gq=0, qc_both=0;
+		ac_qc=0, an_qc=0;
+		gt.clear();
+		dp.clear();
+		gq.clear();
+		pass = false;
+	}
 };
 
 //Get the basic info the first to nineth columns in VCF
@@ -156,6 +174,7 @@ int main (int argc, char** argv) {
 		} else {
 			std::stringstream ss(line); // Convert line to stringstream
 			Variant var;
+			var.clean();
 			GetBasicInfo(var, ss);
 			var.format = "GT"; // Only keep GT
 			//var.pass = KeepFlag(var.info); // rephase info; keep only VFLAGS and ABHet
