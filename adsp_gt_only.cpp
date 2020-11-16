@@ -169,6 +169,7 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 
 void PrintVariant(const Variant & var) {
 	//if (!var.pass) return;
+	const float af = (var.an_qc == 0) ? 0 : var.ac_qc/var.an_qc;
 	std::cout << var.chr << "\t"
 		<< var.pos << "\t"
 		<< var.id << "\t"
@@ -177,7 +178,7 @@ void PrintVariant(const Variant & var) {
 		<< var.qual << "\t"
 		<< var.filter << "\t"
 		//<< var.info << "\t"
-		<< "AC=" << var.ac_qc << ";AF=" << var.ac_qc/var.an_qc << ";AN=" << var.an_qc << ";DP=" << var.dp_qc << ";" << var.info << "\t"
+		<< "AC=" << var.ac_qc << ";AF=" << af << ";AN=" << var.an_qc << ";DP=" << var.dp_qc << ";" << var.info << "\t"
 		<< var.format;
 	// Print GT of each sample
 	for (unsigned int i = 0; i < var.gt.size(); ++i) // The first one GT is empty, so we skip it.
@@ -215,5 +216,6 @@ int main (int argc, char** argv) {
 		}
 	}
 
+	std::cerr << "Program is done normally." << std::endl;
 	return 0;
 }
