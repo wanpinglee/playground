@@ -193,7 +193,7 @@ int main (int argc, char** argv) {
 	std::cin.tie(NULL); // Fastern IO
 
 	std::string line; // buffer
-	std::cerr << "AC\tAN\tQC_AC\tQC_AN\tDP<10\tGQ<20\tDP_GQ" << std::endl;
+	//std::cerr << "AC\tAN\tQC_AC\tQC_AN\tDP<10\tGQ<20\tDP_GQ" << std::endl;
 	while (std::getline(std::cin, line)) { // Catch a line from stdin
 		if (line[0] == '#') { // for header section, write out directly
 			std::cout << line << std::endl;
@@ -210,8 +210,8 @@ int main (int argc, char** argv) {
 			//var.pass = KeepFlag(var.info); // rephase info; keep only VFLAGS and ABHet
 			ExtractInfo(var, ss); // Change low-qual genotypes to missing
 			PrintVariant(var); // Output vcf to stdout
-			std::cerr << var.info_ac << "\t" << var.info_an << "\t" << var.ac_qc << "\t" 
-			<< var.an_qc << "\t" << var.qc_fail_dp << "\t" << var.qc_fail_gq << "\t" << var.qc_fail_both << std::endl;
+			//std::cerr << var.info_ac << "\t" << var.info_an << "\t" << var.ac_qc << "\t" 
+			//<< var.an_qc << "\t" << var.qc_fail_dp << "\t" << var.qc_fail_gq << "\t" << var.qc_fail_both << std::endl;
 		}
 	}
 
