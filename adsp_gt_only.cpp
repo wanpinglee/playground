@@ -47,6 +47,16 @@ inline void GetBasicInfo (Variant & var, std::stringstream & ss) {
 	ss >> var.format;
 }
 
+//Add "ori" as a prefix to AN, AC, AF, and DP in INFO field.
+inline void AddPrefix (const std::string & prefix, const std::string & target, std::string & info) {
+	std::size_t found = info.find(target);
+	if (found != std::string::npos)
+		info.insert(found, prefix);
+	else
+		std::cerr << "Warning: Cannot find " << target << " in " << info << std::endl;
+		
+}
+
 // Keep falgs and ABHet in INFO and discard others
 // Return True if the variant is good.
 bool KeepFlag (std::string & info) {
@@ -176,6 +186,10 @@ int main (int argc, char** argv) {
 			Variant var;
 			var.clean();
 			GetBasicInfo(var, ss);
+			AddPrefix("ori_", "AC=", var.info);
+			AddPrefix("ori_", "AN=", var.info);
+			AddPrefix("ori_", "AF=", var.info);
+			AddPrefix("ori_", "DP=", var.info);
 			var.format = "GT"; // Only keep GT
 			//var.pass = KeepFlag(var.info); // rephase info; keep only VFLAGS and ABHet
 			ExtractInfo(var, ss);
