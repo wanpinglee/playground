@@ -7,9 +7,9 @@
 struct Variant {
 	// the CHROM, ID, REF, ALT, QUAL, FILTER, INFO, and FORMAT columns in VCF
 	std::string chr, id, ref, alt, qual, filter, info, format;
-	int pos, ac, an; // position, AC, and AN.
-	int qc_dp, qc_gq, qc_both; // DP < 10 and/or GQ <20.
-	int ac_qc, an_qc; // AC and AN after QC.
+	int pos, info_ac, info_an, info_dp; // position, AC, AN, and DP in INFO.
+	int qc_fail_dp, qc_fail_gq, qc_fail_both; // DP < 10 and/or GQ <20.
+	int ac_qc, an_qc, dp_qc; // AC and AN after QC.
 	std::vector<std::string> gt;
 	std::vector<std::string> dp;
 	std::vector<std::string> gq;
@@ -24,9 +24,9 @@ struct Variant {
 		filter.clear();
 		info.clear();
 		format.clear();
-		pos=0, ac=0, an=0;
-		qc_dp=0, qc_gq=0, qc_both=0;
-		ac_qc=0, an_qc=0;
+		pos=0, info_ac=0, info_an=0, info_dp=0;
+		qc_fail_dp=0, qc_fail_gq=0, qc_fail_both=0;
+		ac_qc=0, an_qc=0, dp_qc=0;
 		gt.clear();
 		dp.clear();
 		gq.clear();
@@ -45,11 +45,23 @@ inline void GetBasicInfo (Variant & var, std::stringstream & ss) {
 	ss >> var.filter;
 	ss >> var.info;
 	ss >> var.format;
+
+	std::size_t found1 = var.info.find("AC=");
+	std::size_t found2 = var.info.find(";", found1 + 1);
+	var.info_ac = std::atoi(var.info.substr(found1 + 3, found2 - found1 - 3).c_str());
+
+	found1 = var.info.find("AN=");
+	found2 = var.info.find(";", found1 + 1);
+	var.info_an = std::atoi(var.info.substr(found1 + 3, found2 - found1 - 3).c_str());
+
+	found1 = var.info.find("DP=");
+	found2 = var.info.find(";", found1 + 1);
+	var.info_dp = std::atoi(var.info.substr(found1 + 3, found2 - found1 - 3).c_str());
 }
 
 //Add "ori" as a prefix to AN, AC, AF, and DP in INFO field.
 inline void AddPrefix (const std::string & prefix, const std::string & target, std::string & info) {
-	std::size_t found = info.find(target);
+	const std::size_t found = info.find(target);
 	if (found != std::string::npos)
 		info.insert(found, prefix);
 	else
@@ -117,8 +129,6 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 		if (gt[0] != '.' && gt[0] != '0') ac++;
 		if (gt[2] != '.' && gt[2] != '0') ac++;
 
-		var.an += an;
-		var.ac += ac;
 		var.an_qc += an;
 		var.ac_qc += ac;
 		
@@ -128,12 +138,15 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 		// For DP
 		std::size_t pos1 = token.find((':'), pos + 1); // DP
 		//var.dp.push_back(token.substr(pos + 1, pos1 - pos - 1));
-		const bool qc_dp_fail = (std::atoi(token.substr(pos + 1, pos1 - pos - 1).c_str()) < 10) ? true : false;
+		const int dp = std::atoi(token.substr(pos + 1, pos1 - pos - 1).c_str());
+		const bool qc_dp_fail = (dp < 10) ? true : false;
 		if (qc_dp_fail) {
-			var.qc_dp++;
+			var.qc_fail_dp++;
 			var.an_qc -= an;
 			var.ac_qc -= ac;
 			*(var.gt.rbegin()) = missingGt;
+		} else {
+			var.dp_qc += dp;
 		}
 
 		// For GQ
@@ -141,14 +154,14 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 		pos1 = token.find((':'), pos + 1); // GQ
 		//var.gq.push_back(token.substr(pos + 1, pos1 - pos - 1));
 		const bool qc_gq_fail = (std::atoi(token.substr(pos + 1, pos1 - pos - 1).c_str()) < 20) ? true : false;
-		if (qc_gq_fail) var.qc_gq++;
+		if (qc_gq_fail) var.qc_fail_gq++;
 		if (qc_gq_fail && !qc_dp_fail) {
 			var.an_qc -= an;
 			var.ac_qc -= ac;
 			*(var.gt.rbegin()) = missingGt;
 		}
 
-		if (qc_dp_fail && qc_gq_fail) var.qc_both++;
+		if (qc_dp_fail && qc_gq_fail) var.qc_fail_both++;
 	}
 	//return all_missing;
 	return false;
@@ -164,7 +177,7 @@ void PrintVariant(const Variant & var) {
 		<< var.qual << "\t"
 		<< var.filter << "\t"
 		//<< var.info << "\t"
-		<< "AC=" << var.ac_qc << ";AF=" << var.ac_qc/var.an_qc << ";AN=" << var.an_qc << ";" << var.info << "\t"
+		<< "AC=" << var.ac_qc << ";AF=" << var.ac_qc/var.an_qc << ";AN=" << var.an_qc << ";DP=" << var.dp_qc << ";" << var.info << "\t"
 		<< var.format;
 	// Print GT of each sample
 	for (unsigned int i = 0; i < var.gt.size(); ++i) // The first one GT is empty, so we skip it.
@@ -197,8 +210,8 @@ int main (int argc, char** argv) {
 			//var.pass = KeepFlag(var.info); // rephase info; keep only VFLAGS and ABHet
 			ExtractInfo(var, ss); // Change low-qual genotypes to missing
 			PrintVariant(var); // Output vcf to stdout
-			std::cerr << var.ac << "\t" << var.an << "\t" << var.ac_qc << "\t" 
-			<< var.an_qc << "\t" << var.qc_dp << "\t" << var.qc_gq << "\t" << var.qc_both << std::endl;
+			std::cerr << var.info_ac << "\t" << var.info_an << "\t" << var.ac_qc << "\t" 
+			<< var.an_qc << "\t" << var.qc_fail_dp << "\t" << var.qc_fail_gq << "\t" << var.qc_fail_both << std::endl;
 		}
 	}
 
