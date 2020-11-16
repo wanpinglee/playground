@@ -96,6 +96,7 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 	std::string token;
 	//bool all_missing = true;
 	bool first = true;
+	const std::string missingGt = "./.";
 	while (std::getline(ss, token, '\t')) { // Divid by tab
 		if (first) { // The first one is the empty one.
 			first = false;
@@ -132,6 +133,7 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 			var.qc_dp++;
 			var.an_qc -= an;
 			var.ac_qc -= ac;
+			*(var.gt.rbegin()) = missingGt;
 		}
 
 		// For GQ
@@ -143,6 +145,7 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 		if (qc_gq_fail && !qc_dp_fail) {
 			var.an_qc -= an;
 			var.ac_qc -= ac;
+			*(var.gt.rbegin()) = missingGt;
 		}
 
 		if (qc_dp_fail && qc_gq_fail) var.qc_both++;
@@ -160,8 +163,8 @@ void PrintVariant(const Variant & var) {
 		<< var.alt << "\t"
 		<< var.qual << "\t"
 		<< var.filter << "\t"
-		<< var.info << "\t"
-		//<< "AC=" << var.ac << ";AF=" << var.ac/var.an << ";AN=" << var.an << ";" << var.info << "\t"
+		//<< var.info << "\t"
+		<< "AC=" << var.ac_qc << ";AF=" << var.ac_qc/var.an_qc << ";AN=" << var.an_qc << ";" << var.info << "\t"
 		<< var.format;
 	// Print GT of each sample
 	for (unsigned int i = 0; i < var.gt.size(); ++i) // The first one GT is empty, so we skip it.
@@ -192,7 +195,7 @@ int main (int argc, char** argv) {
 			AddPrefix("ori_", "DP=", var.info);
 			var.format = "GT"; // Only keep GT
 			//var.pass = KeepFlag(var.info); // rephase info; keep only VFLAGS and ABHet
-			ExtractInfo(var, ss);
+			ExtractInfo(var, ss); // Change low-qual genotypes to missing
 			PrintVariant(var); // Output vcf to stdout
 			std::cerr << var.ac << "\t" << var.an << "\t" << var.ac_qc << "\t" 
 			<< var.an_qc << "\t" << var.qc_dp << "\t" << var.qc_gq << "\t" << var.qc_both << std::endl;
