@@ -198,6 +198,13 @@ int main (int argc, char** argv) {
 	while (std::getline(std::cin, line)) { // Catch a line from stdin
 		if (line[0] == '#') { // for header section, write out directly
 			std::cout << line << std::endl;
+			// Insert new tags in INFO field
+			if (line.find("ID=AC") != std::string::npos || line.find("ID=AN") != std::string::npos
+				|| line.find("ID=AF") != std::string::npos || line.find("ID=DP") != std::string::npos) {
+				const std::size_t found = line.find("ID=");
+				line.insert(found + 3, "ori_");
+				std::cout << line << std::endl;
+			}
 		} else {
 			std::stringstream ss(line); // Convert line to stringstream
 			Variant var;
