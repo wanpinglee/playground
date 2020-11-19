@@ -114,6 +114,7 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 			first = false;
 			continue;
 		}
+		//std::cerr << token << std::endl;
 		std::size_t pos = token.find(':'); // GT is the first info in ADSP VCF
 		const std::string gt = token.substr(0, pos); // Extract GT
 		var.gt.push_back(gt); // Store GT
@@ -133,20 +134,19 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 		var.ac_qc += ac;
 		
 		// For AD
-		pos = token.find(':'), pos + 1; // AD
+		pos = token.find(':', pos + 1); // AD
 
 		// For DP
 		std::size_t pos1 = token.find((':'), pos + 1); // DP
 		//var.dp.push_back(token.substr(pos + 1, pos1 - pos - 1));
 		const int dp = std::atoi(token.substr(pos + 1, pos1 - pos - 1).c_str());
+		//std::cerr << std::atoi(token.substr(pos + 1, pos1 - pos - 1).c_str()) << std::endl;
 		const bool qc_dp_fail = (dp < 10) ? true : false;
 		if (qc_dp_fail) {
 			var.qc_fail_dp++;
 			var.an_qc -= an;
 			var.ac_qc -= ac;
 			*(var.gt.rbegin()) = missingGt;
-		} else {
-			var.dp_qc += dp;
 		}
 
 		// For GQ
@@ -154,6 +154,8 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 		pos1 = token.find((':'), pos + 1); // GQ
 		//var.gq.push_back(token.substr(pos + 1, pos1 - pos - 1));
 		const bool qc_gq_fail = (std::atoi(token.substr(pos + 1, pos1 - pos - 1).c_str()) < 20) ? true : false;
+		//std::cerr << std::atoi(token.substr(pos + 1, pos1 - pos - 1).c_str()) << std::endl;
+		//const bool qc_gq_fail = false;
 		if (qc_gq_fail) var.qc_fail_gq++;
 		if (qc_gq_fail && !qc_dp_fail) {
 			var.an_qc -= an;
@@ -161,6 +163,7 @@ bool ExtractInfo (Variant & var, std::stringstream & ss) {
 			*(var.gt.rbegin()) = missingGt;
 		}
 
+		if (!qc_dp_fail && !qc_gq_fail) var.dp_qc += dp;
 		if (qc_dp_fail && qc_gq_fail) var.qc_fail_both++;
 	}
 	//return all_missing;
@@ -194,7 +197,7 @@ int main (int argc, char** argv) {
 	std::cin.tie(NULL); // Fastern IO
 
 	std::string line; // buffer
-	//std::cerr << "AC\tAN\tQC_AC\tQC_AN\tDP<10\tGQ<20\tDP_GQ" << std::endl;
+	std::cerr << "ORI_AC\tORI_AN\tORI_DP\tQC_AC\tQC_AN\tQC_DP\tDP<10\tGQ<20\tDP<10_AND_GQ<20" << std::endl;
 	while (std::getline(std::cin, line)) { // Catch a line from stdin
 		if (line[0] == '#') { // for header section, write out directly
 			std::cout << line << std::endl;
@@ -218,8 +221,8 @@ int main (int argc, char** argv) {
 			//var.pass = KeepFlag(var.info); // rephase info; keep only VFLAGS and ABHet
 			ExtractInfo(var, ss); // Change low-qual genotypes to missing
 			PrintVariant(var); // Output vcf to stdout
-			//std::cerr << var.info_ac << "\t" << var.info_an << "\t" << var.ac_qc << "\t" 
-			//<< var.an_qc << "\t" << var.qc_fail_dp << "\t" << var.qc_fail_gq << "\t" << var.qc_fail_both << std::endl;
+			std::cerr << var.info_ac << "\t" << var.info_an << "\t" << var.info_dp << "\t" << var.ac_qc << "\t" 
+			<< var.an_qc << "\t" << var.dp_qc << "\t" << var.qc_fail_dp << "\t" << var.qc_fail_gq << "\t" << var.qc_fail_both << std::endl;
 		}
 	}
 
